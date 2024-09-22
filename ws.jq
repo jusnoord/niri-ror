@@ -4,7 +4,8 @@
 include "filters";
 include "operators";
 
-# Function to move focused window to the end
+# Move focused window to the end of the list
+# if it exists in the list. For cycling.
 def move_focused_to_end(results):
   results | 
   if any(.is_focused == true) then
@@ -13,8 +14,8 @@ def move_focused_to_end(results):
     .
   end;
 
-# Define arg_or_default function
-def arg_or_default($arg_name; $default):
+# Helper to stop the complaining 
+def default_arg($arg_name; $default):
   $ARGS.named[$arg_name] // $default;
 
 
@@ -48,28 +49,25 @@ def apply_filters($app_id_filter; $title_filter; $exclude_focused; $operation; $
     $input
   end) as $filtered_results |
   
+  # sort them by id in ascending order for the focus cycling
+  ($filtered_results | sort_by(.id)) as $sorted_results |
+
   # Apply focus exclusion filter
-  ($filtered_results | filter_exclude_focused($exclude_focused)) as $focus_filtered |
+  ($sorted_results | filter_exclude_focused($exclude_focused)) as $focus_filtered |
 
   # Get the focused window, if it exists in the original input
   ($input | map(select(.is_focused == true)) | first) as $focused_window |
 
- # Get the focused window, if it exists in the original input and we're not excluding it
-  if $exclude_focused != "true" then
-    ($input | map(select(.is_focused == true)) | first) as $focused_window |
-    # Combine results, ensuring focused window is last if it exists
-    if $focused_window then
-      ($focus_filtered | map(select(.id != $focused_window.id))) + [$focused_window]
-    else
-      $focus_filtered
-    end
+ # Move the focused window to the end
+  if $focused_window != null then
+    move_focused_to_end($focus_filtered)
   else
     $focus_filtered
   end | 
   if $printdebug == "true" then
     .
     |
-    debug("Printed entire list of filtered results for debugging. Without --printdebug, only the id of the top window will be printed.") 
+    debug("Printing entire list of filtered results for debugging. Without --printdebug, only the id of the top window will be printed.") 
   else
     map(.id) |
     first
@@ -78,9 +76,9 @@ def apply_filters($app_id_filter; $title_filter; $exclude_focused; $operation; $
 
 # Apply filters to the input
 apply_filters(
-  arg_or_default("app_id"; "");
-  arg_or_default("title"; "");
-  arg_or_default("exclude_focused"; "false");
-  arg_or_default("operation"; "");
-  arg_or_default("printdebug"; "")
+  default_arg("app_id"; "");
+  default_arg("title"; "");
+  default_arg("exclude_focused"; "false");
+  default_arg("operation"; "");
+  default_arg("printdebug"; "")
 )
