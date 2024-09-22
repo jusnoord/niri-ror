@@ -27,3 +27,9 @@ def filter_by_title($filter_string):
   else
     { error: "Unexpected type", type: type }
   end;
+
+def filter_by_app_id_or_title($app_id_filter; $title_filter):
+  (filter_by_app_id($app_id_filter) + filter_by_title($title_filter)) | unique_by(.id);
+
+# Top-level program
+filter_by_app_id_or_title($app_id_filter; $title_filter)
