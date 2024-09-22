@@ -26,4 +26,4 @@ def filter_by_title($filter_string):
     . | { error: "Root is an object, not an array", keys: keys }
   else
     { error: "Unexpected type", type: type }
-  end
+  end;
