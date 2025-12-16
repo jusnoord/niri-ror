@@ -3,7 +3,7 @@
 def filter_by_app_id($filter_string):
   if type == "array" then
     map(
-      select(.app_id | type == "string" and contains($filter_string))
+      select(.app_id | type == "string" and endswith($filter_string))
       | { id, app_id, title, workspace_id, is_focused }
     )
   elif type == "object" then
