@@ -8,6 +8,8 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 log_file="${ROR_LOG_FILE:-/tmp/ror.log}"
+jq_filter_file=""
+jq_filter_tmp=""
 
 app_id=""
 title=""
@@ -19,6 +21,15 @@ operation=""
 exclude_focused="false"
 printdebug="false"
 list_only="false"
+time_run="false"
+
+cleanup() {
+  if [[ -n "${jq_filter_tmp:-}" && -f "$jq_filter_tmp" ]]; then
+    rm -f "$jq_filter_tmp"
+  fi
+}
+
+trap cleanup EXIT
 
 usage() {
   cat <<'EOF'
@@ -34,6 +45,9 @@ Options:
   --exclude-focused       Exclude currently focused window from cycling.
   --printdebug            Print filtered results to stderr via jq debug.
   --list                  Print filtered window list and exit (no focus/launch).
+  --time                  Log elapsed time (ms) for search/launch; prints when debug/listing.
+  --jq-filter-file <f>    jq filter file to pre-process window JSON before ws.jq.
+  --jq-filter '<expr>'    Inline jq filter (written to a temp file) applied before ws.jq.
   --command "<string>"    Command string (word-split) to run if no match is found.
   --help                  Show this help.
 
@@ -74,6 +88,25 @@ while [[ "$#" -gt 0 ]]; do
       printdebug="true"; shift;;
     --list)
       list_only="true"; shift;;
+    --time)
+      time_run="true"; shift;;
+    --jq-filter-file)
+      [[ $# -lt 2 ]] && { echo "Missing value for --jq-filter-file" >&2; exit 1; }
+      if [[ -n "$jq_filter_file" ]]; then
+        echo "Only one jq filter may be provided" >&2
+        exit 1
+      fi
+      jq_filter_file="$2"; shift 2;;
+    --jq-filter)
+      [[ $# -lt 2 ]] && { echo "Missing value for --jq-filter" >&2; exit 1; }
+      if [[ -n "$jq_filter_file" ]]; then
+        echo "Only one jq filter may be provided" >&2
+        exit 1
+      fi
+      jq_filter_tmp="$(mktemp)"
+      printf '%s\n' "$2" > "$jq_filter_tmp"
+      jq_filter_file="$jq_filter_tmp"
+      shift 2;;
     --help)
       usage; exit 0;;
     --)
@@ -94,6 +127,11 @@ fi
 
 if [[ ${#command_args[@]} -eq 0 ]]; then
   echo "Error: command to launch is required (use --command or pass after --)" >&2
+  exit 1
+fi
+
+if [[ -n "$jq_filter_file" && ! -f "$jq_filter_file" ]]; then
+  echo "Error: jq filter file not found: $jq_filter_file" >&2
   exit 1
 fi
 
@@ -122,9 +160,24 @@ launch() {
 search() {
   jq_args=(--arg app_id "$app_id" --arg title "$title" --arg exclude_focused "$exclude_focused" --arg operation "$operation" --arg printdebug "$printdebug" --arg list_only "$list_only")
 
-  winid=$(niri msg -j windows | jq -L "$script_dir" -f "$script_dir/ws.jq" "${jq_args[@]}")
+  jq_cmd=(jq -L "$script_dir")
+  if [[ -n "$jq_filter_file" ]]; then
+    jq_cmd+=(-f "$jq_filter_file")
+  fi
+  jq_cmd+=(-f "$script_dir/ws.jq")
+
+  start_ns=$(date +%s%N)
+  winid=$(niri msg -j windows | "${jq_cmd[@]}" "${jq_args[@]}")
+  end_ns=$(date +%s%N)
+  elapsed_ms=$(( (end_ns - start_ns) / 1000000 ))
 
   log "Found winid: $winid"
+  if [[ "$time_run" == "true" ]]; then
+    log "Elapsed_ms: $elapsed_ms"
+  fi
+  if [[ "$time_run" == "true" || "$printdebug" == "true" || "$list_only" == "true" ]]; then
+    >&2 echo "elapsed_ms=${elapsed_ms}"
+  fi
 
   if [[ "$list_only" == "true" ]]; then
     printf '%s\n' "$winid"
