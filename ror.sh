@@ -14,6 +14,9 @@ log_enabled="false"
 elapsed_ms=0
 trace_enabled="false"
 json_tmp=""
+filtered_tmp=""
+notify_cmd_spec=${ROR_NOTIFY_CMD:-'dunstify -a "ror" -t 500'}
+notify_cmd=()
 
 app_id=""
 title=""
@@ -72,6 +75,11 @@ EOF
 if [[ $# -eq 0 ]]; then
   usage
   exit 1
+fi
+
+if [[ -n "$notify_cmd_spec" ]]; then
+  # shellcheck disable=SC2086
+  eval "notify_cmd=($notify_cmd_spec)" || notify_cmd=()
 fi
 
 while [[ "$#" -gt 0 ]]; do
@@ -170,6 +178,17 @@ log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$log_file"
 }
 
+notify() {
+  if [[ ${#notify_cmd[@]} -eq 0 ]]; then
+    return
+  fi
+  if [[ $# -eq 2 ]]; then
+    "${notify_cmd[@]}" "$1" "$2"
+  else
+    "${notify_cmd[@]}" "$1"
+  fi
+}
+
 log_action() {
   local msg="$1"
   if [[ "$time_run" == "true" ]]; then
@@ -179,7 +198,7 @@ log_action() {
 }
 
 launch() {
-  dunstify -a "ror" -t 500 "Starting $app_name"
+  notify "Starting $app_name"
   if [[ -n "$cwd" ]]; then
     cd "$cwd" || exit
   fi
@@ -240,7 +259,7 @@ search() {
     launch
   else
     log_action "Focusing winid: $winid"
-    dunstify -a "ror" -t 500 "Found $app_name" "Raising window..."
+    notify "Found $app_name" "Raising window..."
     niri msg action focus-window --id "$winid"
   fi
 }
