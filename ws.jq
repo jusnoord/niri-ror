@@ -18,34 +18,39 @@ def effective_operation($requested; $app_id_filter; $title_filter):
   end;
 
 
-def apply_filters($app_id_filter; $title_filter; $exclude_focused; $operation; $printdebug; $list_only):
+def apply_filters($app_id_filter; $title_filter; $app_id_regex; $title_regex; $exclude_focused; $operation; $printdebug; $list_only):
   . as $input |
-  (effective_operation($operation; $app_id_filter; $title_filter)) as $op |
+  (effective_operation($operation; ($app_id_filter + $app_id_regex); ($title_filter + $title_regex))) as $raw_op |
+  ($raw_op | if . == "or" then "union" elif . == "and" then "intersection" else . end) as $op |
 
   (if $op == "union" then
     union_filter(
-      $input | filter_by_app_id($app_id_filter);
-      $input | filter_by_title($title_filter)
+      $input | filter_by_app_id_regex($app_id_regex) | filter_by_app_id($app_id_filter);
+      $input | filter_by_title_regex($title_regex) | filter_by_title($title_filter)
     )
   elif $op == "intersection" then
     intersection_filter(
-      $input | filter_by_app_id($app_id_filter);
-      $input | filter_by_title($title_filter)
+      $input | filter_by_app_id_regex($app_id_regex) | filter_by_app_id($app_id_filter);
+      $input | filter_by_title_regex($title_regex) | filter_by_title($title_filter)
     )
   elif $op == "difference" then
     difference_filter(
-      $input | filter_by_app_id($app_id_filter);
-      $input | filter_by_title($title_filter)
+      $input | filter_by_app_id_regex($app_id_regex) | filter_by_app_id($app_id_filter);
+      $input | filter_by_title_regex($title_regex) | filter_by_title($title_filter)
     )
   elif $op == "or" then
     or_filter(
-      $input | filter_by_app_id($app_id_filter);
-      $input | filter_by_title($title_filter)
+      $input | filter_by_app_id_regex($app_id_regex) | filter_by_app_id($app_id_filter);
+      $input | filter_by_title_regex($title_regex) | filter_by_title($title_filter)
     )
+  elif $app_id_regex != "" then
+    $input | filter_by_app_id_regex($app_id_regex)
   elif $app_id_filter != "" then
-    $input | filter_by_app_id($app_id_filter)
+    $input | filter_by_app_id_regex($app_id_regex) | filter_by_app_id($app_id_filter)
+  elif $title_regex != "" then
+    $input | filter_by_title_regex($title_regex)
   elif $title_filter != "" then
-    $input | filter_by_title($title_filter)
+    $input | filter_by_title_regex($title_regex) | filter_by_title($title_filter)
   else
     $input
   end) as $filtered_results |
@@ -86,6 +91,8 @@ def apply_filters($app_id_filter; $title_filter; $exclude_focused; $operation; $
 apply_filters(
   default_arg("app_id"; "");
   default_arg("title"; "");
+  default_arg("app_id_regex"; "");
+  default_arg("title_regex"; "");
   default_arg("exclude_focused"; "false");
   default_arg("operation"; "");
   default_arg("printdebug"; "");

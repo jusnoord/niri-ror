@@ -21,6 +21,8 @@ notify_cmd=()
 
 app_id=""
 title=""
+app_id_regex=""
+title_regex=""
 command_str=""
 declare -a command_args=()
 app_name=""
@@ -51,9 +53,11 @@ Usage: ror.sh [options] -- command...
        ror.sh [options] --command "<command string>"
 
 Options:
-  --app-id <id>           Window app_id suffix to match (endswith).
+  --app-id <id>           Window app_id substring to match (contains).
   --title <title>         Substring to match in window title.
-  --operation <op>        union | intersection | difference | or. Default: intersection when both app-id and title are present, else best effort.
+  --app-id-regex <re>     Regex to match app_id (takes precedence over --app-id).
+  --title-regex <re>      Regex to match title (takes precedence over --title).
+  --operation <op>        union (either), intersection (both), difference (app_id minus title), or (first non-empty). Default: intersection when both app-id and title are present, else best effort.
   --app-name <name>       Friendly name for notifications (defaults to app-id/title).
   --cwd <path>            Working directory for the command.
   --exclude-focused       Exclude currently focused window from cycling.
@@ -91,6 +95,12 @@ while [[ "$#" -gt 0 ]]; do
     --title)
       [[ $# -lt 2 ]] && { echo "Missing value for --title" >&2; exit 1; }
       title="$2"; shift 2;;
+    --app-id-regex)
+      [[ $# -lt 2 ]] && { echo "Missing value for --app-id-regex" >&2; exit 1; }
+      app_id_regex="$2"; shift 2;;
+    --title-regex)
+      [[ $# -lt 2 ]] && { echo "Missing value for --title-regex" >&2; exit 1; }
+      title_regex="$2"; shift 2;;
     --command)
       [[ $# -lt 2 ]] && { echo "Missing value for --command" >&2; exit 1; }
       command_str="$2"; shift 2;;
@@ -208,7 +218,7 @@ launch() {
 }
 
 search() {
-  jq_args=(--arg app_id "$app_id" --arg title "$title" --arg exclude_focused "$exclude_focused" --arg operation "$operation" --arg printdebug "$printdebug" --arg list_only "$list_only")
+  jq_args=(--arg app_id "$app_id" --arg title "$title" --arg app_id_regex "$app_id_regex" --arg title_regex "$title_regex" --arg exclude_focused "$exclude_focused" --arg operation "$operation" --arg printdebug "$printdebug" --arg list_only "$list_only")
 
   json_tmp="$(mktemp)"
   if ! niri msg -j windows > "$json_tmp"; then
