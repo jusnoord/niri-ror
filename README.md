@@ -1,4 +1,4 @@
-# ROR
+# Run-or-Raise for [niri](https://github.com/YaLTeR/niri)
 
 A script that provides run-or-raise (ROR) functionality for [niri](https://github.com/yalter/niri), specifically now that it supports window focus commands in 0.1.9.
 
