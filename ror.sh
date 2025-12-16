@@ -16,7 +16,7 @@ elapsed_ms=0
 trace_enabled="false"
 json_tmp=""
 filtered_tmp=""
-notify_cmd_spec=${ROR_NOTIFY_CMD:-'dunstify -a "ror" -t 500'}
+notify_cmd_spec=${ROR_NOTIFY_CMD:-'notify-send -a "ror" -u low'}
 notify_cmd=()
 
 app_id=""
