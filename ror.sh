@@ -8,6 +8,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 log_file="${ROR_LOG_FILE:-/tmp/ror.log}"
+jq_lib_dir="$script_dir/lib"
 jq_filter_file=""
 jq_filter_tmp=""
 log_enabled="false"
@@ -220,7 +221,7 @@ search() {
   if [[ -n "$jq_filter_file" ]]; then
     filtered_tmp="$(mktemp)"
     set +e
-    jq -L "$script_dir" -f "$jq_filter_file" < "$json_tmp" > "$filtered_tmp"
+    jq -L "$jq_lib_dir" -L "$script_dir" -f "$jq_filter_file" < "$json_tmp" > "$filtered_tmp"
     jq_status=$?
     set -e
     if [[ $jq_status -ne 0 ]]; then
@@ -234,7 +235,7 @@ search() {
   fi
 
   set +e
-  winid=$(jq -L "$script_dir" -f "$script_dir/ws.jq" "${jq_args[@]}" < "$json_tmp")
+  winid=$(jq -L "$jq_lib_dir" -L "$script_dir" -f "$script_dir/ws.jq" "${jq_args[@]}" < "$json_tmp")
   jq_status=$?
   set -e
   if [[ $jq_status -ne 0 ]]; then
