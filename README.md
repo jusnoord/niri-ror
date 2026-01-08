@@ -32,6 +32,7 @@ Options:
 - `--jq-filter-file <path>`: jq file that pre-processes the window JSON before the built-in filters.
 - `--jq-filter '<expr>'`: inline jq filter (written to a temp file) applied before the built-in filters.
 - `--log`: enable file logging (default off) to `$ROR_LOG_FILE` or `/tmp/ror.log` (found/focus/launch/elapsed when `--time`).
+- `--notify`: enable desktop notifications (default off).
 - `--command "<string>"`: command as a single string; you can also pass the command after `--` to preserve arguments exactly.
 
 
@@ -43,12 +44,13 @@ Options:
          --title "Calendar" \
          --operation intersection \
          --app-name "Outlook Calendar" \
+         --notify \
          --command "gio launch /home/nik/.local/share/applications/msedge-calendar.desktop"
   ```
 
 - Same, but with an explicit command array:
   ```sh
-  ror.sh --app-id "kitty" -- kitty -1
+  ror.sh --app-id "kitty" --notify -- kitty -1
   ```
 
 - Inspect what would be matched without focusing/launching:
@@ -93,18 +95,17 @@ This is how I use this script. Taken from my niri config:
 
 ## Notes
 
-- Requires `niri >= 0.1.9`, `jq`, and `notify-send` (or your `ROR_NOTIFY_CMD`) if you want notifications.
+- Requires `niri >= 0.1.9` and `jq`.
 - `app_id` and `--title` matching defaults to substring (`contains`). Use regex (e.g., `--title-regex '^Mail'`) if you need a strict suffix.
 - With your window running: `niri msg -j windows | jq '.[] | {app_id, title, id, workspace_id}'` and look at the `app_id`/title substring you care about. 
 - Logging is opt-in (`--log`); timing still prints to stderr when `--time` is set.
 - Custom filters run before the built-in filters; if they return an empty array (`[]`), the script will treat it as “no matches” and launch a new instance. 
-- Notifications use `ROR_NOTIFY_CMD` (default: `notify-send -a "ror" -u low`). Set it to another command or empty to disable notifications. For whatever reason I still like to use dunst, so I've got: `# ROR_NOTIFY_CMD='dunstify -a "ror" -t 500'`.
-
+- Desktop notifications require `notify-send` (or your own `ROR_NOTIFY_CMD`) and are disabled by default; use `--notify` to enable them. The default command is `notify-send -a "ror" -t 300`. Back in the day I had this using dunstify, e.g. `# ROR_NOTIFY_CMD='dunstify -a "ror" -t 500'`, but now that it's super stable I've found I don't need the notifications any more.
 
 ## Development
 
 - Lint/check: `make check` (runs `shellcheck` if available and syntax-checks `ror.sh`, and runs `jq` against `ws.jq`).
-- Dependency check: `make deps` (verifies `jq`, `niri`, and the notification command—default `dunstify`, overridable via `ROR_NOTIFY_CMD`).
+- Dependency check: `make deps` (verifies `jq` and `niri`)
 - jq modules live in `lib/` and are resolved via the script’s `-L` path; custom filters can also import them.
 
 ## Why not Rust
