@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Unified run-or-raise script for niri
 # Usage:
 #   ./ror.sh --app-id <id> --title <title> --operation intersection -- command...
